@@ -1,6 +1,6 @@
 id: org.freedownloadmanager.Manager
 runtime: org.freedesktop.Platform
-runtime-version: '25.08'
+runtime-version: "25.08"
 sdk: org.freedesktop.Sdk
 command: fdm
 tags:
@@ -85,9 +85,10 @@ modules:
 
   - name: fdm
     buildsystem: simple
-    build-commands:
+    build-commands:   
       # set scripts
       - mkdir -p /app/lib
+      - install -Dm755 apply_extra.sh /app/bin/apply_extra
       - install -Dm755 fdm-wrapper.sh /app/bin/fdm
 
       # set metadata
@@ -101,33 +102,40 @@ modules:
       - cp -a /usr/lib/$(gcc --print-multiarch)/libsframe.so* ${FLATPAK_DEST}/lib
 
     sources:
-      # --------- extra-data: deb is downloaded DURING INSTALLATION, not during compilation -------
+      # --------- extra-data: deb is downloaded DURING INSTALLATION, not during compilation ---------
       - type: extra-data
         only-arches:
           - x86_64
         filename: freedownloadmanager.deb
         url: https://files2.freedownloadmanager.org/6/latest/freedownloadmanager.deb
-        sha256: 9f563a87dc577aa53a2ceea1ebaaa59d3f70b23158a93a1a00f27cb1360bf468
-        size: 42164496
+        sha256: c659566a42715c4957275d2f9b2c17b6b73f1be38eec900bfbe31243363b7a09
+        size: 43837212
 
 
-      # ---------  apply_extra: unpacks the deb downloaded during installation --------
+      # --------- script for unpacking deb and extracting the binary  ---------
       - type: script
-        dest-filename: apply_extra
+        dest-filename: apply_extra.sh
         commands:
-          - ar x freedownloadmanager.deb
-          - tar -xf data.tar.* --strip-components=1
-          - rm -f freedownloadmanager.deb control.tar.* data.tar.* debian-binary
+          - 'set -euo pipefail'
+          - 'DEST="${FLATPAK_DEST:-/app}/extra"'
+          - 'DEB="$DEST/freedownloadmanager.deb"'
+          - 'mkdir -p "$DEST"'
+          - 'TMP="$(mktemp -d)"'
+          - 'cd "$TMP"'
+          # find and unpack data.tar.*
+          - 'ar x "$DEB"'
+          - 'if   [ -f data.tar.zst ]; then tar --zstd -xf data.tar.zst -C "$DEST";'
+          - 'elif [ -f data.tar.xz  ]; then tar -xJf  data.tar.xz  -C "$DEST";'
+          - 'elif [ -f data.tar.gz  ]; then tar -xzf  data.tar.gz  -C "$DEST";'
+          - 'else echo "Unknown data.tar.* in deb" >&2; exit 1; fi'
+          - 'rm -rf "$TMP"'
 
-      # ---------  wrapper: launches /app/extra/opt/freedownloadmanager/fdm --------
-
-      # ---------  wrapper: launches /app/bin/fdm.real --------
+      # ---------  wrapper: launches /app/bin/fdm.real ---------
       - type: script
         dest-filename: fdm-wrapper.sh
         commands:
-          - set -euo pipefail
-          - exec /app/extra/opt/freedownloadmanager/fdm "$@"
-
+          - 'set -euo pipefail'
+          - 'exec /app/extra/opt/freedownloadmanager/fdm "$@"'
 
 
       - type: file
@@ -138,5 +146,4 @@ modules:
 
       - type: file
         path: org.freedownloadmanager.Manager.svg
-
 
