@@ -111,12 +111,23 @@ modules:
         size: 42164496
 
 
+      # ---------  apply_extra: unpacks the deb downloaded during installation --------
+      - type: script
+        dest-filename: apply_extra
+        commands:
+          - ar x freedownloadmanager.deb
+          - tar -xf data.tar.* --strip-components=1
+          - rm -f freedownloadmanager.deb control.tar.* data.tar.* debian-binary
+
+      # ---------  wrapper: launches /app/extra/opt/freedownloadmanager/fdm --------
+
       # ---------  wrapper: launches /app/bin/fdm.real --------
       - type: script
         dest-filename: fdm-wrapper.sh
         commands:
           - set -euo pipefail
           - exec /app/extra/opt/freedownloadmanager/fdm "$@"
+
 
 
       - type: file
